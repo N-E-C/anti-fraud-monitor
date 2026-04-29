@@ -1,0 +1,40 @@
+# 网络请求
+requests>=2.31.0
+httpx>=0.25.0
+aiohttp>=3.9.0
+
+# 数据解析
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+feedparser>=6.0.10
+
+# 数据处理
+pandas>=2.1.0
+numpy>=1.26.0
+
+# NLP 关键词提取 & 情感分析
+jieba>=0.42.1
+snownlp>=0.12.3
+textblob>=0.17.1
+
+# 数据库
+SQLAlchemy>=2.0.0
+
+# 报表生成
+openpyxl>=3.1.0
+matplotlib>=3.8.0
+reportlab>=4.0.0
+
+# 定时任务
+APScheduler>=3.10.0
+
+# 配置管理
+python-dotenv>=1.0.0
+pyyaml>=6.0.1
+
+# 日志
+loguru>=0.7.0
+
+# Web 界面（可选）
+flask>=3.0.0
+flask-cors>=4.0.0

@@ -54,13 +54,18 @@ class ExcelReporter:
         high_risk = [p for p in posts_data if p.get("risk_level") == "high"]
         self._write_detail_sheet(ws2, high_risk, "高风险舆情明细")
 
-        # Sheet 3: 全量数据
-        ws3 = wb.create_sheet("全量数据")
-        self._write_detail_sheet(ws3, posts_data, "全量舆情数据")
+        # Sheet 3: 宁夏舆情明细（供客服/反诈专员研判解封）
+        ws3 = wb.create_sheet("宁夏舆情明细")
+        ningxia_posts = [p for p in posts_data if p.get("is_ningxia")]
+        self._write_ningxia_sheet(ws3, ningxia_posts, "宁夏舆情研判清单")
 
-        # Sheet 4: 用户核查清单
-        ws4 = wb.create_sheet("用户核查清单")
-        self._write_user_check_sheet(ws4, posts_data)
+        # Sheet 4: 全量数据
+        ws4 = wb.create_sheet("全量数据")
+        self._write_detail_sheet(ws4, posts_data, "全量舆情数据")
+
+        # Sheet 5: 用户核查清单
+        ws5 = wb.create_sheet("用户核查清单")
+        self._write_user_check_sheet(ws5, posts_data)
 
         wb.save(filepath)
         logger.info(f"报表已生成: {filepath}")
@@ -157,14 +162,14 @@ class ExcelReporter:
                 row_idx - 1,
                 post.get("platform", ""),
                 risk_labels.get(risk, risk),
-                (post.get("title") or post.get("content", ""))[:80],
+                post.get("title") or post.get("content", ""),  # 不截断，完整显示
                 post.get("author_name", ""),
                 post.get("author_followers", 0),
                 post.get("view_count", 0),
                 post.get("like_count", 0),
                 post.get("comment_count", 0),
                 post.get("share_count", 0),
-                str(post.get("published_at", ""))[:16],
+                str(post.get("published_at", "")),  # 不截断，完整显示
                 post.get("matched_keywords", ""),
                 "是" if post.get("suspected_fraud_flag") else "否",
                 post.get("mentioned_phones", ""),
@@ -212,3 +217,149 @@ class ExcelReporter:
                 ws.cell(row=row_idx, column=6, value="待处理")
                 ws.cell(row=row_idx, column=7, value="")
                 row_idx += 1
+
+    def _write_ningxia_sheet(self, ws, posts_data: List[dict], title: str):
+        """写入宁夏舆情研判清单（供客服/反诈专员解封研判使用）"""
+        # 标题行
+        ws.merge_cells("A1:L1")
+        title_cell = ws["A1"]
+        title_cell.value = "宁夏反诈舆情研判清单 — 供客服/反诈专员解封研判使用"
+        title_cell.font = Font(name="微软雅黑", size=14, bold=True, color=COLOR_HEADER_FONT)
+        title_cell.fill = PatternFill("solid", fgColor=COLOR_HEADER)
+        title_cell.alignment = Alignment(horizontal="center", vertical="center")
+        ws.row_dimensions[1].height = 30
+
+        # 说明行
+        ws.merge_cells("A2:L2")
+        ws["A2"].value = "说明：本表汇总被识别为宁夏区域的反诈关停相关舆情，供研判用户是否可解封。重点关注：1) 是否有核验链接截图；2) 用户诉求合理性；3) 情感负面程度。"
+        ws["A2"].font = Font(size=10, italic=True, color="666666")
+
+        # 列定义（针对宁夏研判场景优化）
+        columns = [
+            ("序号", 6),
+            ("平台", 10),
+            ("风险等级", 10),
+            ("用户手机号", 15),
+            ("宁夏标识", 20),
+            ("标题/内容摘要", 40),
+            ("情感分值", 10),
+            ("有核验链接", 10),
+            ("链接类型", 15),
+            ("发布时间", 18),
+            ("原文链接", 35),
+            ("研判建议", 30),
+        ]
+
+        # 表头（第3行）
+        for col_idx, (col_name, width) in enumerate(columns, 1):
+            cell = ws.cell(row=3, column=col_idx, value=col_name)
+            cell.fill = PatternFill("solid", fgColor=COLOR_HEADER)
+            cell.font = Font(color=COLOR_HEADER_FONT, bold=True)
+            cell.alignment = Alignment(horizontal="center", wrap_text=True)
+            ws.column_dimensions[get_column_letter(col_idx)].width = width
+
+        # 风险颜色和标签
+        risk_colors = {"high": COLOR_HIGH_RISK, "medium": COLOR_MEDIUM_RISK, "low": COLOR_LOW_RISK}
+        risk_labels = {"high": "🔴 高", "medium": "🟡 中", "low": "🟢 低"}
+
+        # 数据行（从第4行开始）
+        for row_idx, post in enumerate(posts_data, 4):
+            risk = post.get("risk_level", "low")
+            row_color = risk_colors.get(risk, COLOR_LOW_RISK)
+
+            # 获取宁夏标识
+            ningxia_ids = post.get("ningxia_identifiers", "")
+            if isinstance(ningxia_ids, list):
+                ningxia_ids = ", ".join(ningxia_ids)
+
+            # 获取核验链接信息
+            has_link = "是" if post.get("has_verification_link") else "否"
+            link_types = post.get("verification_links_found", "")
+            if isinstance(link_types, list):
+                # 简化链接类型显示
+                simplified = []
+                for link in link_types:
+                    if "online-cmcc" in link:
+                        simplified.append("online-cmcc认证")
+                    elif "nx.10086" in link:
+                        simplified.append("宁夏10086认证")
+                    else:
+                        simplified.append(link[:20])
+                link_types = ", ".join(simplified)
+
+            # 情感分值（越低越负面）
+            sentiment = post.get("sentiment_score", 0.5)
+            sentiment_label = f"{sentiment:.2f}"
+            if sentiment < 0.2:
+                sentiment_label += " (极负面)"
+            elif sentiment < 0.4:
+                sentiment_label += " (负面)"
+
+            # 生成研判建议
+            suggestion = self._generate_ningxia_suggestion(post)
+
+            # 获取手机号
+            phones = post.get("ningxia_phones", "") or post.get("mentioned_phones", "")
+            if isinstance(phones, list):
+                phones = ", ".join(phones)
+
+            values = [
+                row_idx - 3,
+                post.get("platform", ""),
+                risk_labels.get(risk, risk),
+                phones,
+                ningxia_ids,
+                post.get("title") or post.get("content", ""),
+                sentiment_label,
+                has_link,
+                link_types,
+                str(post.get("published_at", ""))[:16],
+                post.get("url", ""),
+                suggestion,
+            ]
+
+            for col_idx, value in enumerate(values, 1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                if col_idx == 3:  # 风险等级列高亮
+                    cell.fill = PatternFill("solid", fgColor=row_color)
+                    cell.font = Font(color="FFFFFF", bold=True)
+                cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+        # 添加底部说明
+        last_row = len(posts_data) + 5
+        ws.merge_cells(f"A{last_row}:L{last_row}")
+        ws[f"A{last_row}"].value = "【研判要点】有核验链接截图的用户更可能是真实误关停，建议优先处理；情感极负面但无链接的需核实是否为施压用户。"
+        ws[f"A{last_row}"].font = Font(size=10, bold=True, color="CC0000")
+
+    def _generate_ningxia_suggestion(self, post: dict) -> str:
+        """根据舆情特征生成研判建议"""
+        suggestions = []
+
+        # 有核验链接 → 可能是真实误关停用户
+        if post.get("has_verification_link"):
+            suggestions.append("有短信核验链接截图，可能是真实被关停用户，建议优先核查解封")
+
+        # 情感极负面
+        sentiment = post.get("sentiment_score", 0.5)
+        if sentiment < 0.2:
+            suggestions.append("情感极负面，用户情绪激动，需安抚处理")
+        elif sentiment < 0.4:
+            suggestions.append("情感偏负面，用户有不满情绪")
+
+        # 有宁夏标识
+        if post.get("ningxia_identifiers"):
+            suggestions.append("明确提及宁夏移动/反诈中心，属本区责任范围")
+
+        # 有手机号
+        if post.get("ningxia_phones") or post.get("mentioned_phones"):
+            suggestions.append("已提取手机号，可直接核查关停记录")
+
+        # 疑似诈骗施压
+        if post.get("suspected_fraud_flag"):
+            suggestions.append("⚠️ 命中施压模式，需谨慎研判是否为真实用户")
+
+        # 高传播
+        if post.get("high_spread"):
+            suggestions.append("传播量较大，需关注舆情发酵风险")
+
+        return "；".join(suggestions) if suggestions else "常规舆情，按流程处理"

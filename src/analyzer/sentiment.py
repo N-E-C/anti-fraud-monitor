@@ -29,7 +29,9 @@ MEDIUM_RISK_KEYWORDS = [
     "客服不理", "无故", "申诉", "恢复",
 ]
 
+# -------------------------------------------------------
 # 疑似诈骗用户施压特征词（此类用户可能在用舆论对抗监管）
+# -------------------------------------------------------
 SUSPECTED_FRAUD_PATTERNS = [
     r"号码正常.*被封",
     r"没有诈骗.*停机",
@@ -39,6 +41,34 @@ SUSPECTED_FRAUD_PATTERNS = [
     r"联合抵制",
     r"曝光.*运营商",
     r"集体.*投诉",
+]
+
+# -------------------------------------------------------
+# 宁夏区域特征关键词
+# -------------------------------------------------------
+NINGXIA_IDENTIFIER_KEYWORDS = [
+    "宁夏移动", "宁夏联通", "宁夏电信",
+    "银川市公安局反诈中心", "银川反诈",
+    "宁夏反诈中心", "宁夏自治区反诈中心",
+]
+
+# 宁夏手机号段前缀
+NINGXIA_PHONE_PREFIXES = [
+    "13469", "13519", "13619", "13709", "13895", "13995",
+    "14709", "15009", "15109", "15209", "15709", "15809", "15909",
+    "17809", "18209", "18309", "18409", "18709", "18809", "19509", "19809",
+]
+
+# -------------------------------------------------------
+# 反诈核验链接特征（用户贴出短信截图时常见）
+# -------------------------------------------------------
+VERIFICATION_LINK_PATTERNS = [
+    r"verify\.online-cmcc\.cn",
+    r"nx\.10086\.cn/capability/secondaryCertificationNew",
+    r"edcreg-web/videorealname",
+    r"wechatRealVerify",
+    r"sc-enter\.html",
+    r"sc-center\.html",
 ]
 
 # 传播量阈值（超过此值视为高传播）
@@ -66,6 +96,15 @@ class AnalysisResult:
     # 是否符合疑似诈骗用户施压模式
     suspected_fraud_flag: bool = False
     suspected_fraud_reason: str = ""
+
+    # 宁夏区域识别
+    is_ningxia: bool = False
+    ningxia_identifiers: List[str] = field(default_factory=list)
+    ningxia_phones: List[str] = field(default_factory=list)
+
+    # 反诈核验链接检测
+    has_verification_link: bool = False
+    verification_links_found: List[str] = field(default_factory=list)
 
     # 最终风险等级
     risk_level: str = "low"   # high / medium / low
@@ -120,18 +159,35 @@ class SentimentAnalyzer:
                 result.suspected_fraud_reason = pattern
                 break
 
-        # 4. 传播量风险判断
+        # 4. 宁夏区域识别
+        result.ningxia_identifiers = [kw for kw in NINGXIA_IDENTIFIER_KEYWORDS if kw in text]
+        
+        # 检查手机号段是否为宁夏号段
+        phones = re.findall(r"1[3-9]\d{9}", text)
+        result.ningxia_phones = [p for p in phones if any(p.startswith(prefix) for prefix in NINGXIA_PHONE_PREFIXES)]
+        
+        # 判断是否为宁夏舆情：有宁夏关键词 或 有宁夏号段
+        result.is_ningxia = bool(result.ningxia_identifiers) or bool(result.ningxia_phones)
+
+        # 5. 反诈核验链接检测
+        for pattern in VERIFICATION_LINK_PATTERNS:
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            if matches:
+                result.verification_links_found.extend(matches)
+        result.has_verification_link = bool(result.verification_links_found)
+
+        # 6. 传播量风险判断
         for field_name, threshold in HIGH_SPREAD_THRESHOLD.items():
             val = getattr(post, field_name, 0) or 0
             if val >= threshold:
                 result.high_spread = True
                 break
 
-        # 5. 综合风险评级
+        # 7. 综合风险评级
         result.risk_level = self._calc_risk_level(result)
 
-        # 6. 提取手机号
-        result.mentioned_phones = re.findall(r"1[3-9]\d{9}", text)
+        # 8. 提取手机号
+        result.mentioned_phones = phones
 
         return result
 

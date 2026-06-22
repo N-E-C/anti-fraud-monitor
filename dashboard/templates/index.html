@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}数据概览 - 反诈舆情监测{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="bi bi-speedometer2"></i> 数据概览</h2>
+    <span class="text-muted">最近更新: {{ format_datetime(latest_crawl) }}</span>
+</div>
+
+<!-- 统计卡片 -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card" style="border-left: 4px solid #2563eb;">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-value" style="color: #2563eb;">{{ total }}</div>
+                    <div class="stat-label">数据总量</div>
+                </div>
+                <i class="bi bi-database" style="font-size: 36px; color: #2563eb; opacity: 0.6;"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card" style="border-left: 4px solid #dc2626;">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-value risk-high">{{ high }}</div>
+                    <div class="stat-label">高风险舆情</div>
+                </div>
+                <i class="bi bi-exclamation-triangle" style="font-size: 36px; color: #dc2626; opacity: 0.6;"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card" style="border-left: 4px solid #f59e0b;">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-value risk-medium">{{ medium }}</div>
+                    <div class="stat-label">中风险舆情</div>
+                </div>
+                <i class="bi bi-exclamation-circle" style="font-size: 36px; color: #f59e0b; opacity: 0.6;"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card" style="border-left: 4px solid #16a34a;">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-value risk-low">{{ low }}</div>
+                    <div class="stat-label">低风险舆情</div>
+                </div>
+                <i class="bi bi-check-circle" style="font-size: 36px; color: #16a34a; opacity: 0.6;"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 宁夏专区 + 平台分布 -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="ningxia-highlight h-100">
+            <h6 class="mb-3"><i class="bi bi-building"></i> 宁夏舆情专区</h6>
+            <div class="row text-center">
+                <div class="col-6 mb-3">
+                    <div style="font-size: 28px; font-weight: 700;">{{ ningxia_count }}</div>
+                    <div style="font-size: 12px; opacity: 0.8;">总计</div>
+                </div>
+                <div class="col-6 mb-3">
+                    <div style="font-size: 28px; font-weight: 700; color: #fca5a5;">{{ ningxia_high }}</div>
+                    <div style="font-size: 12px; opacity: 0.8;">高风险</div>
+                </div>
+                <div class="col-6">
+                    <div style="font-size: 28px; font-weight: 700; color: #fde68a;">{{ ningxia_medium }}</div>
+                    <div style="font-size: 12px; opacity: 0.8;">中风险</div>
+                </div>
+                <div class="col-6">
+                    <div style="font-size: 28px; font-weight: 700; color: #86efac;">{{ ningxia_low }}</div>
+                    <div style="font-size: 12px; opacity: 0.8;">低风险</div>
+                </div>
+            </div>
+            <div class="text-center mt-2">
+                <a href="/ningxia" class="btn btn-light btn-sm">
+                    <i class="bi bi-arrow-right"></i> 查看详情
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="chart-container h-100">
+            <h6 class="mb-3"><i class="bi bi-phone"></i> 平台分布</h6>
+            <div class="row g-2">
+                {% for p_info in all_platforms %}
+                <div class="col-6">
+                    <div class="d-flex align-items-center p-2 rounded" style="background: {{ p_info.bg_color }};">
+                        <div class="me-2" style="font-size: 18px;">{{ p_info.icon }}</div>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold small" style="color: {{ p_info.text_color }};">{{ p_info.name }}</div>
+                            <div class="text-muted" style="font-size: 12px;">{{ p_info.count }} 条</div>
+                        </div>
+                        {% if p_info.status == 'normal' %}
+                        <span class="badge bg-success" style="font-size: 10px;">正常</span>
+                        {% elif p_info.status == 'error' %}
+                        <span class="badge bg-danger" style="font-size: 10px;">异常</span>
+                        {% else %}
+                        <span class="badge bg-secondary" style="font-size: 10px;">未接入</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 趋势图 + 风险分布 -->
+<div class="row g-3">
+    <div class="col-md-8">
+        <div class="chart-container">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0"><i class="bi bi-graph-up"></i> 舆情趋势</h6>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary active" onclick="switchTrend('week', this)">近7天</button>
+                    <button class="btn btn-outline-primary" onclick="switchTrend('month', this)">近30天</button>
+                </div>
+            </div>
+            <div style="height: 200px;">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="chart-container">
+            <h6 class="mb-2"><i class="bi bi-pie-chart"></i> 风险分布</h6>
+            <div style="height: 200px;">
+                <canvas id="riskPieChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// 趋势数据
+const trendData = {{ trend_data|safe }};
+
+// 趋势图
+const trendCtx = document.getElementById('trendChart').getContext('2d');
+let trendChart = new Chart(trendCtx, {
+    type: 'line',
+    data: {
+        labels: trendData.week.labels,
+        datasets: [
+            {
+                label: '高风险',
+                data: trendData.week.high,
+                borderColor: '#dc2626',
+                backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 3
+            },
+            {
+                label: '中风险',
+                data: trendData.week.medium,
+                borderColor: '#f59e0b',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 3
+            },
+            {
+                label: '低风险',
+                data: trendData.week.low,
+                borderColor: '#16a34a',
+                backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 3
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top',
+                labels: { boxWidth: 12, font: { size: 11 } }
+            }
+        },
+        scales: {
+            y: { beginAtZero: true }
+        }
+    }
+});
+
+function switchTrend(period, btn) {
+    btn.parentElement.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    trendChart.data.labels = trendData[period].labels;
+    trendChart.data.datasets[0].data = trendData[period].high;
+    trendChart.data.datasets[1].data = trendData[period].medium;
+    trendChart.data.datasets[2].data = trendData[period].low;
+    trendChart.update();
+}
+
+// 风险分布饼图 - 直接显示数据
+const riskCtx = document.getElementById('riskPieChart').getContext('2d');
+new Chart(riskCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['高风险', '中风险', '低风险'],
+        datasets: [{
+            data: [{{ high }}, {{ medium }}, {{ low }}],
+            backgroundColor: ['#dc2626', '#f59e0b', '#16a34a'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { boxWidth: 12, font: { size: 11 } }
+            },
+            tooltip: {
+                enabled: true
+            },
+            datalabels: {
+                display: true,
+                color: '#fff',
+                font: { weight: 'bold', size: 12 },
+                formatter: (value) => value
+            }
+        }
+    },
+    plugins: [{
+        id: 'datalabels',
+        afterDatasetsDraw(chart) {
+            const { ctx, data } = chart;
+            chart.getDatasetMeta(0).data.forEach((arc, i) => {
+                const { x, y, startAngle, endAngle, innerRadius, outerRadius } = arc;
+                const midAngle = (startAngle + endAngle) / 2;
+                const radius = (innerRadius + outerRadius) / 2;
+                const x2 = x + Math.cos(midAngle) * radius;
+                const y2 = y + Math.sin(midAngle) * radius;
+                
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillText(data.datasets[0].data[i], x2, y2);
+                ctx.restore();
+            });
+        }
+    }]
+});
+</script>
+{% endblock %}

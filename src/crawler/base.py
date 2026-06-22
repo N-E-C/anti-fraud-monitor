@@ -32,6 +32,7 @@ class RawPost:
     comment_count: int = 0
     share_count: int = 0
     published_at: Optional[datetime] = None
+    image_urls: List[str] = field(default_factory=list)
     raw_data: dict = field(default_factory=dict)
 
 

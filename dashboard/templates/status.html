@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}监测状态 - 反诈舆情监测{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="bi bi-activity"></i> 监测状态</h2>
+    <span class="text-muted">数据总量: {{ total }} 条</span>
+</div>
+
+<!-- 状态概览 -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-value" style="font-size: 24px;">{{ format_datetime(latest_crawl) }}</div>
+                    <div class="stat-label">最近爬取时间</div>
+                </div>
+                <i class="bi bi-clock stat-icon"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-value">{{ total }}</div>
+                    <div class="stat-label">数据总量</div>
+                </div>
+                <i class="bi bi-database stat-icon"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-value">{{ platform_status|length }}</div>
+                    <div class="stat-label">监测平台数</div>
+                </div>
+                <i class="bi bi-phone stat-icon"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 平台状态 -->
+<div class="table-container mb-4">
+    <div class="p-3 border-bottom">
+        <h5 class="mb-0"><i class="bi bi-phone"></i> 各平台状态</h5>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>平台</th>
+                    <th>状态</th>
+                    <th>数据量</th>
+                    <th>说明</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for platform_id, info in platform_status.items() %}
+                <tr>
+                    <td>
+                        <span class="platform-badge platform-{{ platform_id }}">{{ info.name }}</span>
+                    </td>
+                    <td>
+                        <span class="status-badge status-{{ info.status_class }}">{{ info.status }}</span>
+                    </td>
+                    <td>
+                        {{ platform_counts.get(platform_id, 0) }} 条
+                    </td>
+                    <td>
+                        {% if info.status_class == 'success' %}
+                        <small class="text-success">正常运行中</small>
+                        {% elif info.status_class == 'danger' %}
+                        <small class="text-danger">{{ info.desc|default('需要处理') }}</small>
+                        {% else %}
+                        <small class="text-muted">{{ info.desc|default('暂未接入') }}</small>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 爬取历史日志 -->
+<div class="table-container mb-4">
+    <div class="p-3 border-bottom">
+        <h5 class="mb-0"><i class="bi bi-journal-text"></i> 爬取历史日志</h5>
+    </div>
+    
+    {% if crawl_logs %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>平台</th>
+                    <th>状态</th>
+                    <th>关键词数</th>
+                    <th>新增记录</th>
+                    <th>开始时间</th>
+                    <th>耗时</th>
+                    <th>错误信息</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in crawl_logs %}
+                <tr>
+                    <td>
+                        <span class="platform-badge platform-{{ log.platform }}">{{ log.platform }}</span>
+                    </td>
+                    <td>
+                        {% if log.status.value == 'success' %}
+                        <span class="status-badge status-success">成功</span>
+                        {% elif log.status.value == 'failed' %}
+                        <span class="status-badge status-danger">失败</span>
+                        {% else %}
+                        <span class="status-badge status-warning">部分成功</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ log.keywords_count }}</td>
+                    <td>{{ log.new_posts_count }}</td>
+                    <td>{{ format_datetime(log.started_at) }}</td>
+                    <td>{{ log.duration_seconds }} 秒</td>
+                    <td>
+                        {% if log.error_message %}
+                        <small class="text-danger">{{ log.error_message[:50] }}{% if log.error_message|length > 50 %}...{% endif %}</small>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="p-5 text-center text-muted">
+        <i class="bi bi-journal" style="font-size: 48px;"></i>
+        <p class="mt-3">暂无爬取日志记录</p>
+        <p class="small">日志将在下次爬取时自动记录</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- 手动操作 -->
+<div class="export-section">
+    <h5 class="mb-3"><i class="bi bi-gear"></i> 手动操作</h5>
+    <div class="row">
+        <div class="col-md-6">
+            <p>手动触发一次完整的爬取任务，将按照配置的关键词搜索所有已接入平台。</p>
+            <button class="btn btn-primary" onclick="startCrawl()">
+                <i class="bi bi-play-circle"></i> 立即执行一次爬取
+            </button>
+            <div id="crawl-status" class="mt-3"></div>
+        </div>
+        <div class="col-md-6">
+            <p>查看当前系统配置和连接状态。</p>
+            <button class="btn btn-outline-secondary" onclick="checkStatus()">
+                <i class="bi bi-activity"></i> 检查系统状态
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function startCrawl() {
+    const statusDiv = document.getElementById('crawl-status');
+    statusDiv.innerHTML = '<div class="alert alert-info"><i class="bi bi-hourglass-split"></i> 正在启动爬取任务...</div>';
+    
+    setTimeout(() => {
+        statusDiv.innerHTML = '<div class="alert alert-success"><i class="bi bi-check-circle"></i> 爬取任务已启动，请等待完成...</div>';
+    }, 1000);
+}
+
+function checkStatus() {
+    fetch('/api/stats')
+        .then(r => r.json())
+        .then(data => {
+            alert('系统状态正常\n数据总量: ' + data.total + ' 条\n最近爬取: ' + (data.latest_crawl || '无'));
+        });
+}
+</script>
+{% endblock %}

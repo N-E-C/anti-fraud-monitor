@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}舆情详情 - 反诈舆情监测{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{{ back_url }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> 返回列表
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- 基本信息 -->
+        <div class="chart-container mb-4">
+            <h5 class="mb-3"><i class="bi bi-info-circle"></i> 基本信息</h5>
+            <table class="table table-borderless">
+                <tr>
+                    <td class="text-muted" style="width: 120px;">ID</td>
+                    <td>{{ post.id }}</td>
+                </tr>
+                <tr>
+                    <td class="text-muted">平台</td>
+                    <td>
+                        <span class="platform-badge platform-{{ post.platform }}">
+                            {{ platforms.get(post.platform, {}).get('icon', '') }} 
+                            {{ platforms.get(post.platform, {}).get('name', post.platform) }}
+                        </span>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="text-muted">风险等级</td>
+                    <td>
+                        {% if post.risk_level %}
+                        <span class="badge-risk badge-{{ post.risk_level.value }}">
+                            {{ risk_level_display(post.risk_level) }}
+                        </span>
+                        {% else %}
+                        <span class="badge-risk">未知</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="text-muted">宁夏相关</td>
+                    <td>{% if post.is_ningxia %}<span class="badge bg-info">是</span>{% else %}否{% endif %}</td>
+                </tr>
+                <tr>
+                    <td class="text-muted">命中关键词</td>
+                    <td>{{ post.matched_keywords or '-' }}</td>
+                </tr>
+                <tr>
+                    <td class="text-muted">情感分值</td>
+                    <td>{{ "%.2f"|format(post.sentiment_score or 0) }}</td>
+                </tr>
+            </table>
+        </div>
+        
+        <!-- 正文内容 -->
+        <div class="chart-container mb-4">
+            <h5 class="mb-3"><i class="bi bi-text-left"></i> 正文内容</h5>
+            <div style="background: #f8fafc; padding: 15px; border-radius: 8px; line-height: 1.8;">
+                {{ post.content }}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- 作者信息 -->
+        <div class="chart-container mb-4">
+            <h5 class="mb-3"><i class="bi bi-person"></i> 作者信息</h5>
+            <table class="table table-borderless table-sm">
+                <tr>
+                    <td class="text-muted">昵称</td>
+                    <td>{{ post.author_name or '-' }}</td>
+                </tr>
+                <tr>
+                    <td class="text-muted">ID</td>
+                    <td>{{ post.author_id or '-' }}</td>
+                </tr>
+                <tr>
+                    <td class="text-muted">粉丝数</td>
+                    <td>{{ post.author_followers or 0 }}</td>
+                </tr>
+                <tr>
+                    <td class="text-muted">认证</td>
+                    <td>{% if post.author_verified %}<span class="badge bg-primary">已认证</span>{% else %}未认证{% endif %}</td>
+                </tr>
+            </table>
+        </div>
+        
+        <!-- 互动数据 -->
+        <div class="chart-container mb-4">
+            <h5 class="mb-3"><i class="bi bi-bar-chart"></i> 互动数据</h5>
+            <div class="row text-center">
+                <div class="col-4">
+                    <div style="font-size: 24px; font-weight: 700; color: #dc2626;">{{ post.like_count or 0 }}</div>
+                    <div class="text-muted small">点赞</div>
+                </div>
+                <div class="col-4">
+                    <div style="font-size: 24px; font-weight: 700; color: #2563eb;">{{ post.comment_count or 0 }}</div>
+                    <div class="text-muted small">评论</div>
+                </div>
+                <div class="col-4">
+                    <div style="font-size: 24px; font-weight: 700; color: #16a34a;">{{ post.share_count or 0 }}</div>
+                    <div class="text-muted small">转发</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 时间信息 -->
+        <div class="chart-container mb-4">
+            <h5 class="mb-3"><i class="bi bi-clock"></i> 时间信息</h5>
+            <table class="table table-borderless table-sm">
+                <tr>
+                    <td class="text-muted">发布时间</td>
+                    <td>{{ format_datetime(post.published_at) }}</td>
+                </tr>
+                <tr>
+                    <td class="text-muted">爬取时间</td>
+                    <td>{{ format_datetime(post.crawled_at) }}</td>
+                </tr>
+            </table>
+        </div>
+        
+        <!-- 链接 -->
+        {% if post.url %}
+        <div class="chart-container mb-4">
+            <h5 class="mb-3"><i class="bi bi-link-45deg"></i> 原文链接</h5>
+            <a href="{{ post.url }}" target="_blank" class="btn btn-primary btn-sm w-100">
+                <i class="bi bi-box-arrow-up-right"></i> 打开原文
+            </a>
+        </div>
+        {% endif %}
+        
+        <!-- 手机号 -->
+        {% if post.phone_number %}
+        <div class="chart-container mb-4">
+            <h5 class="mb-3"><i class="bi bi-phone"></i> 关联手机号</h5>
+            <div style="font-size: 18px; font-weight: 500;">{{ post.phone_number }}</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

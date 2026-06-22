@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}反诈舆情监测系统{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --danger-color: #dc2626;
+            --warning-color: #f59e0b;
+            --success-color: #16a34a;
+        }
+        
+        body {
+            background-color: #f8fafc;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+        
+        /* 侧边栏固定 */
+        .sidebar {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            min-height: 100vh;
+            color: white;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        
+        .sidebar .nav-link {
+            color: #94a3b8;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin: 4px 0;
+            transition: all 0.2s;
+        }
+        
+        .sidebar .nav-link:hover {
+            color: white;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .sidebar .nav-link.active {
+            color: white;
+            background: var(--primary-color);
+        }
+        
+        .sidebar .nav-link i {
+            width: 24px;
+            text-align: center;
+            margin-right: 10px;
+        }
+        
+        .main-content {
+            padding: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .stat-card .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        
+        .stat-card .stat-label {
+            font-size: 14px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+        
+        .stat-card .stat-icon {
+            font-size: 40px;
+            opacity: 0.2;
+        }
+        
+        .risk-high { color: var(--danger-color); }
+        .risk-medium { color: var(--warning-color); }
+        .risk-low { color: var(--success-color); }
+        
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .table-container .table {
+            margin-bottom: 0;
+        }
+        
+        .table-container .table th {
+            background: #f1f5f9;
+            font-weight: 600;
+            color: #475569;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .badge-risk {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .badge-high { background: #fef2f2; color: #991b1b; }
+        .badge-medium { background: #fffbeb; color: #92400e; }
+        .badge-low { background: #f0fdf4; color: #166534; }
+        
+        .filter-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .pagination-wrap {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+        }
+        
+        .content-preview {
+            max-width: 300px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        /* 平台样式 */
+        .platform-badge {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .platform-weibo { background: #fef2f2; color: #dc2626; }
+        .platform-zhihu { background: #eff6ff; color: #2563eb; }
+        .platform-baidu_tieba { background: #f0fdf4; color: #16a34a; }
+        .platform-douyin { background: #fdf4ff; color: #9333ea; }
+        .platform-kuaishou { background: #fffbeb; color: #d97706; }
+        .platform-xiaohongshu { background: #fef2f2; color: #e11d48; }
+        
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        
+        .status-success { background: #f0fdf4; color: #166534; }
+        .status-danger { background: #fef2f2; color: #991b1b; }
+        .status-warning { background: #fffbeb; color: #92400e; }
+        
+        .export-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .high-risk-item {
+            border-left: 4px solid var(--danger-color);
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #fef2f2;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .high-risk-item .content {
+            font-weight: 500;
+            color: #1e293b;
+        }
+        
+        .high-risk-item .meta {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 8px;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .logo i {
+            color: var(--primary-color);
+        }
+        
+        .footer-info {
+            padding: 20px;
+            font-size: 12px;
+            color: #64748b;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            margin-top: auto;
+        }
+        
+        /* 图表容器 */
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        /* 宁夏专区 */
+        .ningxia-highlight {
+            background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+            border-radius: 12px;
+            padding: 24px;
+            color: white;
+        }
+        
+        .ningxia-highlight .stat-value {
+            color: white;
+        }
+        
+        .ningxia-highlight .stat-label {
+            color: rgba(255,255,255,0.8);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 侧边栏 -->
+            <div class="col-md-3 col-lg-2 px-0 sidebar d-flex flex-column">
+                <div class="logo">
+                    <i class="bi bi-shield-check"></i> 反诈舆情监测
+                </div>
+                
+                <nav class="nav flex-column px-3">
+                    <a class="nav-link {% if active_page == 'index' %}active{% endif %}" href="/">
+                        <i class="bi bi-speedometer2"></i> 数据概览
+                    </a>
+                    <a class="nav-link {% if active_page == 'posts' %}active{% endif %}" href="/posts">
+                        <i class="bi bi-list-ul"></i> 全部舆情
+                    </a>
+                    <a class="nav-link {% if active_page == 'ningxia' %}active{% endif %}" href="/ningxia">
+                        <i class="bi bi-building"></i> 宁夏舆情
+                    </a>
+                    <a class="nav-link {% if active_page == 'status' %}active{% endif %}" href="/status">
+                        <i class="bi bi-activity"></i> 监测状态
+                    </a>
+                </nav>
+                
+                <div class="footer-info mt-auto">
+                    <div>数据总量: {{ total|default(0) }} 条</div>
+                    <div>最近更新: {{ format_datetime(latest_crawl)|default('-') }}</div>
+                </div>
+            </div>
+            
+            <!-- 主内容区 -->
+            <div class="col-md-9 col-lg-10 main-content">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,6 +1,6 @@
 """
 定时任务调度器
-负责按计划自动执行爬取、分析、报表生成
+负责按计划自动执行爬取、分析、报表生成、邮件预警
 """
 
 import os
@@ -12,8 +12,7 @@ from loguru import logger
 
 from src.crawler.manager import CrawlerManager
 from src.analyzer.sentiment import SentimentAnalyzer
-from src.reporter.excel_reporter import ExcelReporter
-from src.models import init_db, SentimentPost, UserProfile, RiskLevel, UserType
+from src.models import init_db, SentimentPost, UserProfile, RiskLevel, UserType, CrawlLog, CrawlStatus
 from src.utils.config import load_config, load_keywords
 
 
@@ -28,6 +27,10 @@ def run_crawl_and_analyze():
         keywords_config.get("medium_risk", []) +
         keywords_config.get("neutral", [])
     )
+
+    # 宁夏标识关键词
+    ningxia_keywords = keywords_config.get("ningxia_identifiers", [])
+    phone_prefixes = keywords_config.get("phone_prefixes", [])
 
     logger.info(f"[调度] 开始本轮爬取，关键词数量: {len(all_keywords)}")
 
@@ -57,6 +60,7 @@ def run_crawl_and_analyze():
 
     # 分析并入库
     new_count = 0
+    new_high_risk = []
     for raw in raw_posts:
         # 去重
         exists = session.query(SentimentPost).filter_by(post_id=raw.post_id).first()
@@ -64,6 +68,19 @@ def run_crawl_and_analyze():
             continue
 
         result = analyzer.analyze(raw)
+
+        # 判断是否宁夏相关
+        is_ningxia = False
+        content_text = (raw.content or "") + (raw.title or "")
+        for kw in ningxia_keywords:
+            if kw in content_text:
+                is_ningxia = True
+                break
+        if not is_ningxia and raw.phone_number:
+            for prefix in phone_prefixes:
+                if raw.phone_number.startswith(prefix):
+                    is_ningxia = True
+                    break
 
         post = SentimentPost(
             platform=raw.platform,
@@ -86,59 +103,57 @@ def run_crawl_and_analyze():
             matched_keywords=",".join(result.matched_high + result.matched_medium),
             user_type=UserType.SUSPECTED_FRAUD if result.suspected_fraud_flag else UserType.UNKNOWN,
             phone_number=result.mentioned_phones[0] if result.mentioned_phones else None,
+            is_ningxia=is_ningxia,
+            image_urls=",".join(raw.image_urls) if raw.image_urls else None,
         )
         session.add(post)
         new_count += 1
+        
+        # 记录高风险
+        if result.risk_level == "high":
+            new_high_risk.append(post)
 
     session.commit()
     session.close()
     logger.info(f"[调度] 本轮新增 {new_count} 条舆情记录")
+    
+    # 如果有新的高风险舆情，发送预警邮件
+    if new_high_risk:
+        try:
+            from scripts.email_alert import EmailAlert
+            alert = EmailAlert()
+            if alert.password:
+                alert.send_high_risk_alert(new_high_risk)
+                logger.info(f"[调度] 已发送高风险预警邮件，{len(new_high_risk)} 条")
+        except Exception as e:
+            logger.warning(f"[调度] 邮件预警失败: {e}")
 
 
 def run_daily_report():
-    """生成每日报表"""
+    """生成每日报表并发送邮件"""
     from datetime import date
-    engine, Session = init_db(os.getenv("DATABASE_URL", "sqlite:///data/monitor.db"))
-    session = Session()
-
+    from scripts.generate_report import generate_daily_report
+    from scripts.email_alert import EmailAlert
+    
     today = date.today()
-    posts = session.query(SentimentPost).filter(
-        SentimentPost.crawled_at >= datetime.combine(today, datetime.min.time())
-    ).all()
-
-    posts_data = [
-        {
-            "platform": p.platform,
-            "post_id": p.post_id,
-            "title": p.title,
-            "content": p.content,
-            "url": p.url,
-            "author_name": p.author_name,
-            "author_followers": p.author_followers,
-            "view_count": p.view_count,
-            "like_count": p.like_count,
-            "comment_count": p.comment_count,
-            "share_count": p.share_count,
-            "published_at": p.published_at,
-            "risk_level": p.risk_level.value if p.risk_level else "unknown",
-            "sentiment_score": p.sentiment_score,
-            "matched_keywords": p.matched_keywords,
-            "suspected_fraud_flag": p.user_type == UserType.SUSPECTED_FRAUD,
-            "mentioned_phones": p.phone_number or "",
-        }
-        for p in posts
-    ]
-
-    session.close()
-
-    reporter = ExcelReporter(output_dir="reports/output")
-    filepath = reporter.generate_daily_report(posts_data, today)
+    
+    # 生成报表
+    filepath, stats = generate_daily_report(today)
     logger.info(f"[调度] 每日报表已生成: {filepath}")
+    
+    # 发送日报邮件
+    try:
+        alert = EmailAlert()
+        if alert.password:
+            alert.send_daily_report(filepath, stats)
+            logger.info("[调度] 日报邮件已发送")
+    except Exception as e:
+        logger.warning(f"[调度] 日报邮件发送失败: {e}")
 
 
 def start_scheduler():
     """启动定时调度器"""
-    crawl_interval = int(os.getenv("CRAWL_INTERVAL_MINUTES", "60"))
+    crawl_interval = int(os.getenv("CRAWL_INTERVAL_MINUTES", "360"))
     report_hour = int(os.getenv("REPORT_HOUR", "8"))
 
     scheduler = BlockingScheduler(timezone="Asia/Shanghai")

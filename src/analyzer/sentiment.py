@@ -16,17 +16,35 @@ from loguru import logger
 # 风险评级规则
 # -------------------------------------------------------
 
-# 高风险关键词（包含任意一个 → 高风险）
+# 高风险关键词（必须完整匹配短语）
 HIGH_RISK_KEYWORDS = [
-    "误封", "乱封号", "侵权", "投诉", "12321", "工信部",
-    "恶意关停", "强制停机", "无辜", "维权", "曝光",
-    "欺负消费者", "告你", "律师", "法院", "起诉",
+    "中国移动封号", "移动乱封号", "移动侵权", "恶意封号",
+    "反诈误封", "反诈误伤", "号码被封", "恶意关停",
+    "强制停机", "无故停机", "12321投诉", "工信部投诉",
+    "欺负消费者", "曝光运营商", "集体投诉",
 ]
 
 # 中风险关键词
 MEDIUM_RISK_KEYWORDS = [
-    "停机", "封号", "关停", "反诈", "无法使用",
-    "客服不理", "无故", "申诉", "恢复",
+    "反诈", "号码关停", "中国移动投诉", "移动服务差",
+    "12381", "国家反诈", "运营商监管", "停机原因",
+    "移动客服不回应", "申诉无效", "号码异常", "被限制",
+    "打不了电话", "反诈骚扰",
+]
+
+# 核心主题词（内容必须包含以下至少一个，才视为反诈相关）
+CORE_TOPIC_KEYWORDS = [
+    "反诈", "封号", "停机", "关停", "运营商", "中国移动",
+    "号码", "电话卡", "手机卡", "SIM卡", "实名", "认证",
+    "诈骗", "诈骗电话", "诈骗短信", "断卡",
+]
+
+# 排除词（包含以下任意一个，直接排除，不计入风险）
+EXCLUDE_KEYWORDS = [
+    "游戏封号", "微信封号", "支付宝", "银行卡", "信用卡",
+    "交通违章", "违章", "罚款", "扣分", "12123", "交管",
+    "淘宝", "京东", "拼多多", "外卖", "快递",
+    "游戏", "账号被封", "QQ封号", "抖音封号",
 ]
 
 # -------------------------------------------------------
@@ -129,9 +147,13 @@ class SentimentAnalyzer:
         self,
         high_risk_kws: List[str] = None,
         medium_risk_kws: List[str] = None,
+        core_topic_kws: List[str] = None,
+        exclude_kws: List[str] = None,
     ):
         self.high_risk_kws = high_risk_kws or HIGH_RISK_KEYWORDS
         self.medium_risk_kws = medium_risk_kws or MEDIUM_RISK_KEYWORDS
+        self.core_topic_kws = core_topic_kws or CORE_TOPIC_KEYWORDS
+        self.exclude_kws = exclude_kws or EXCLUDE_KEYWORDS
 
     def analyze(self, post) -> AnalysisResult:
         """
@@ -146,9 +168,25 @@ class SentimentAnalyzer:
             platform=getattr(post, "platform", ""),
         )
 
-        # 1. 关键词匹配
-        result.matched_high = [kw for kw in self.high_risk_kws if kw in text]
-        result.matched_medium = [kw for kw in self.medium_risk_kws if kw in text]
+        # 0. 排除词检查 - 如果命中排除词，直接标记为无关
+        excluded = [kw for kw in self.exclude_kws if kw in text]
+        if excluded:
+            result.risk_level = "low"
+            result.matched_high = []
+            result.matched_medium = []
+            return result
+
+        # 1. 核心主题检查 - 必须涉及反诈相关主题
+        has_core_topic = any(kw in text for kw in self.core_topic_kws)
+        
+        # 2. 关键词匹配（只在有核心主题时才匹配）
+        if has_core_topic:
+            result.matched_high = [kw for kw in self.high_risk_kws if kw in text]
+            result.matched_medium = [kw for kw in self.medium_risk_kws if kw in text]
+        else:
+            # 没有核心主题，即使有关键词也不算
+            result.matched_high = []
+            result.matched_medium = []
 
         # 2. 情感分析
         try:
@@ -199,11 +237,15 @@ class SentimentAnalyzer:
 
     def _calc_risk_level(self, r: AnalysisResult) -> str:
         """综合评分，确定风险等级"""
+        # 如果没有命中任何关键词，直接低风险
+        if not r.matched_high and not r.matched_medium:
+            return "low"
+        
         score = 0
 
-        # 高风险关键词 +3分/个
+        # 高风险关键词 +4分/个（短语匹配，权重更高）
         score += len(r.matched_high) * 3
-        # 中风险关键词 +1分/个
+        # 中风险关键词 +2分/个
         score += len(r.matched_medium) * 1
         # 情感极负面（<0.2）+2分
         if r.sentiment_score < 0.2:
@@ -217,7 +259,7 @@ class SentimentAnalyzer:
         if r.high_spread:
             score += 2
 
-        if score >= 5:
+        if score >= 4:
             return "high"
         elif score >= 2:
             return "medium"

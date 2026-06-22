@@ -1,0 +1,35 @@
+# 环境变量
+.env
+
+# 虚拟环境
+.venv/
+
+# Python缓存
+__pycache__/
+*.pyc
+*.pyo
+src/**/__pycache__/
+
+# 数据库
+data/*.db
+
+# 日志
+logs/
+
+# 报表（生成文件）
+reports/
+
+# 临时调试脚本
+check_*.py
+debug_*.py
+test_*.py
+fix_*.py
+update_*.py
+view_*.py
+quick_*.py
+full_*.py
+rebuild_*.py
+
+# IDE
+.vscode/
+.idea/

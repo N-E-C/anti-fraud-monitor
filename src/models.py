@@ -22,6 +22,13 @@ class RiskLevel(enum.Enum):
     UNKNOWN = "unknown" # 待判断
 
 
+class CrawlStatus(enum.Enum):
+    """爬取状态"""
+    SUCCESS = "success"
+    FAILED = "failed"
+    PARTIAL = "partial"  # 部分成功
+
+
 class UserType(enum.Enum):
     """用户类型判断"""
     NORMAL_COMPLAINT = "normal_complaint"   # 正常误伤投诉
@@ -72,6 +79,8 @@ class SentimentPost(Base):
     published_at = Column(DateTime, comment="原文发布时间")
     is_processed = Column(Boolean, default=False, comment="是否已人工处理")
     operator_note = Column(Text, comment="运营人员备注")
+    is_ningxia = Column(Boolean, default=False, comment="是否宁夏相关")
+    image_urls = Column(Text, comment="帖子中的图片链接（逗号分隔）")
 
     def __repr__(self):
         return f"<SentimentPost {self.platform}:{self.post_id} risk={self.risk_level}>"
@@ -134,6 +143,27 @@ class AlertRecord(Base):
 
     def __repr__(self):
         return f"<AlertRecord {self.alert_type} handled={self.is_handled}>"
+
+
+class CrawlLog(Base):
+    """
+    爬取日志
+    记录每次爬取的执行情况
+    """
+    __tablename__ = "crawl_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    platform = Column(String(50), nullable=False, comment="平台名称")
+    status = Column(Enum(CrawlStatus), default=CrawlStatus.SUCCESS, comment="爬取状态")
+    keywords_count = Column(Integer, default=0, comment="关键词数量")
+    new_posts_count = Column(Integer, default=0, comment="新增记录数")
+    error_message = Column(Text, comment="错误信息")
+    started_at = Column(DateTime, default=datetime.utcnow, comment="开始时间")
+    finished_at = Column(DateTime, comment="结束时间")
+    duration_seconds = Column(Integer, comment="耗时（秒）")
+
+    def __repr__(self):
+        return f"<CrawlLog {self.platform} {self.status} at {self.started_at}>"
 
 
 def init_db(db_url: str = "sqlite:///data/monitor.db"):

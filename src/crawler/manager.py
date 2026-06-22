@@ -92,7 +92,7 @@ class CrawlerManager:
                 # 根据不同平台传入不同参数
                 if platform == "douyin":
                     crawler = CrawlerClass(self.keywords, api_key=api_key, proxy=self.proxy)
-                elif platform in ("weibo", "zhihu", "xiaohongshu", "kuaishou"):
+                elif platform in ("weibo", "zhihu", "xiaohongshu", "kuaishou", "baidu_tieba"):
                     crawler = CrawlerClass(self.keywords, cookie=cookie, proxy=self.proxy)
                 else:
                     crawler = CrawlerClass(self.keywords, proxy=self.proxy)

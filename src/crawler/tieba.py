@@ -20,6 +20,13 @@ class TiebaCrawler(BaseCrawler):
     PLATFORM_NAME = "baidu_tieba"
     SEARCH_URL = "https://tieba.baidu.com/f/search/res"
 
+    def __init__(self, keywords: List[str], cookie: str = "", proxy: Optional[str] = None):
+        super().__init__(keywords, proxy)
+        if cookie:
+            self.session.headers["Cookie"] = cookie
+        # 贴吧需要Referer
+        self.session.headers["Referer"] = "https://tieba.baidu.com/"
+
     def search(self, keyword: str, page: int = 1) -> List[RawPost]:
         """搜索贴吧帖子"""
         params = {

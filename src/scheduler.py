@@ -35,6 +35,7 @@ def run_crawl_and_analyze():
     platform_cookies = {
         "weibo": os.getenv("WEIBO_COOKIE", ""),
         "zhihu": os.getenv("ZHIHU_COOKIE", ""),
+        "baidu_tieba": os.getenv("TIEBA_COOKIE", ""),
     }
     manager = CrawlerManager(
         keywords=all_keywords,

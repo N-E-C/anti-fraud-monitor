@@ -66,18 +66,59 @@ class WeiboCrawler(BaseCrawler):
                 # 粉丝数（部分情况可获取）
                 verified = bool(card.select_one(".icon-vip, .icon-svip, .icon-verify"))
 
-                # 正文
+                # 正文 - 清理掉"展开c"、"收起c"等按钮文本
                 content_el = card.select_one(".txt")
                 content = content_el.get_text(strip=True) if content_el else ""
+                # 清理无关文本
+                content = content.replace("展开c", "").replace("收起c", "").replace("展开", "").replace("收起", "").strip()
 
-                # 帖子链接
-                link_el = card.select_one("a[href*='/detail/']")
-                url = f"https://weibo.com{link_el['href']}" if link_el else ""
+                # 帖子链接 - 查找格式为 //weibo.com/{用户ID}/{帖子短ID} 的链接
+                post_link = None
+                for a in card.find_all("a", href=True):
+                    href = a.get("href", "")
+                    # 匹配格式：//weibo.com/{用户ID}/{帖子短ID}（帖子短ID通常是字母数字组合）
+                    if "weibo.com" in href:
+                        # 移除协议前缀和查询参数
+                        clean_href = href.lstrip("/").split("?")[0]
+                        parts = clean_href.split("/")
+                        # 格式：weibo.com/用户ID/帖子短ID
+                        if len(parts) >= 3 and parts[0] == "weibo.com":
+                            user_id = parts[1]
+                            post_short_id = parts[2]
+                            # 帖子短ID通常是字母数字混合，且较长
+                            if post_short_id and len(post_short_id) > 5:
+                                post_link = href
+                                break
+                
+                if post_link:
+                    # 处理 //weibo.com/... 格式
+                    if post_link.startswith("//"):
+                        url = f"https:{post_link}"
+                    elif post_link.startswith("/"):
+                        url = f"https://weibo.com{post_link}"
+                    else:
+                        url = post_link
+                else:
+                    # 备选方案：使用帖子ID构造链接
+                    url = f"https://weibo.com/{post_id}" if post_id else ""
 
-                # 互动数据
-                reposts = self._extract_count(card, "转发")
-                comments = self._extract_count(card, "评论")
-                likes = self._extract_count(card, "赞")
+                # 互动数据 - 微博新版结构：3个li分别是转发、评论、赞
+                act_bar = card.select_one(".card-act")
+                reposts = 0
+                comments = 0
+                likes = 0
+                if act_bar:
+                    lis = act_bar.select("li")
+                    if len(lis) >= 3:
+                        # 第1个li：转发
+                        repost_text = lis[0].get_text(strip=True)
+                        reposts = int(repost_text) if repost_text.isdigit() else 0
+                        # 第2个li：评论
+                        comment_text = lis[1].get_text(strip=True)
+                        comments = int(comment_text) if comment_text.isdigit() else 0
+                        # 第3个li：赞
+                        like_text = lis[2].get_text(strip=True)
+                        likes = int(like_text) if like_text.isdigit() else 0
 
                 # 发布时间
                 time_el = card.select_one(".from a")
@@ -127,6 +168,28 @@ class WeiboCrawler(BaseCrawler):
             elif re.match(r"\d{2}-\d{2}", time_str):
                 parts = time_str.split("-")
                 return datetime(now.year, int(parts[0]), int(parts[1]))
+            # 新增：解析 "YYYY年MM月DD日 HH:MM" 或 "YY年MM月DD日 HH:MM" 格式
+            elif "年" in time_str and "月" in time_str and "日" in time_str:
+                match = re.search(r"(\d{2,4})年(\d+)月(\d+).*?(\d+):(\d+)", time_str)
+                if match:
+                    year = int(match.group(1))
+                    # 处理两位数年份（如24 -> 2024）
+                    if year < 100:
+                        year = 2000 + year
+                    month = int(match.group(2))
+                    day = int(match.group(3))
+                    hour = int(match.group(4))
+                    minute = int(match.group(5))
+                    return datetime(year, month, day, hour, minute)
+            # 解析 "MM月DD日 HH:MM" 格式（无年份）
+            elif "月" in time_str and "日" in time_str:
+                match = re.search(r"(\d+)月(\d+).*?(\d+):(\d+)", time_str)
+                if match:
+                    month = int(match.group(1))
+                    day = int(match.group(2))
+                    hour = int(match.group(3))
+                    minute = int(match.group(4))
+                    return datetime(now.year, month, day, hour, minute)
         except Exception:
             pass
         return None

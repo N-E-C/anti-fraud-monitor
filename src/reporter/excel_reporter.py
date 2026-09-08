@@ -279,10 +279,11 @@ class ExcelReporter:
                 # 简化链接类型显示
                 simplified = []
                 for link in link_types:
-                    if "online-cmcc" in link:
-                        simplified.append("online-cmcc认证")
-                    elif "nx.10086" in link:
-                        simplified.append("宁夏10086认证")
+                    # 简化链接类型显示（按实际核验链接特征调整匹配逻辑）
+                    if "verify" in link.lower():
+                        simplified.append("二次实名核验")
+                    elif "certification" in link.lower():
+                        simplified.append("认证流程")
                     else:
                         simplified.append(link[:20])
                 link_types = ", ".join(simplified)

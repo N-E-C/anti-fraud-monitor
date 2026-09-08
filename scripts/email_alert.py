@@ -28,9 +28,9 @@ class EmailAlert:
     def __init__(self):
         self.smtp_server = os.getenv("SMTP_SERVER", "smtp.139.com")
         self.smtp_port = int(os.getenv("SMTP_PORT", "465"))
-        self.sender = os.getenv("SMTP_SENDER", "15709588632@139.com")
+        self.sender = os.getenv("SMTP_SENDER", "your_alert_mailbox@example.com")
         self.password = os.getenv("SMTP_PASSWORD", "")
-        self.receiver = os.getenv("ALERT_RECEIVER", "15709588632@139.com")
+        self.receiver = os.getenv("ALERT_RECEIVER", "your_alert_mailbox@example.com")
     
     def send_alert(self, subject, content, attachment_path=None):
         """发送预警邮件"""
@@ -213,17 +213,16 @@ def print_config_guide():
 # SMTP服务器设置
 SMTP_SERVER=smtp.139.com
 SMTP_PORT=465
-SMTP_SENDER=15709588632@139.com
+SMTP_SENDER=your_alert_mailbox@example.com
 SMTP_PASSWORD=你的授权码
 
 # 预警接收邮箱
-ALERT_RECEIVER=15709588632@139.com
+ALERT_RECEIVER=your_alert_mailbox@example.com
 
-获取139邮箱授权码：
-1. 登录 https://mail.10086.cn
-2. 设置 → 邮箱协议 → POP3/SMTP服务
-3. 开启SMTP服务
-4. 生成授权码
+获取邮箱授权码（以139邮箱为例）：
+1. 登录对应邮箱服务商官网
+2. 设置 → 邮箱协议 → 开启SMTP/IMAP服务
+3. 生成授权码
 """)
 
 

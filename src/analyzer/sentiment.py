@@ -68,12 +68,8 @@ NINGXIA_IDENTIFIER_KEYWORDS = [
     # 省级标识
     "宁夏移动", "宁夏联通", "宁夏电信",
     "宁夏反诈中心", "宁夏自治区反诈中心", "宁夏公安反诈中心",
-    # 五个地市反诈中心
-    "银川市公安局反诈中心", "银川反诈",
-    "石嘴山市公安局反诈中心", "石嘴山反诈",
-    "吴忠市公安局反诈中心", "吴忠反诈",
-    "固原市公安局反诈中心", "固原反诈",
-    "中卫市公安局反诈中心", "中卫反诈",
+    # 地市反诈中心关键词（按实际辖区填写）
+    "银川反诈", "石嘴山反诈", "吴忠反诈", "固原反诈", "中卫反诈",
 ]
 
 # 宁夏手机号段前缀（09结尾为宁夏）- 精确匹配5位
@@ -87,10 +83,11 @@ NINGXIA_PHONE_PREFIXES = [
 # 反诈核验链接特征（用户贴出短信截图时常见）
 # -------------------------------------------------------
 VERIFICATION_LINK_PATTERNS = [
-    r"verify\.online-cmcc\.cn",
-    r"nx\.10086\.cn/capability/secondaryCertificationNew",
-    r"edcreg-web/videorealname",
-    r"wechatRealVerify",
+    # 按实际使用的二次实名核验链接填写，避免提交内部域名
+    r"your-verify-domain\.example\.com",
+    r"/capability/secondaryCertification",
+    r"videorealname",
+    r"realNameVerify",
     r"sc-enter\.html",
     r"sc-center\.html",
 ]
